@@ -1,0 +1,198 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum RateType {
+  percentage
+  flat
+}
+
+enum WriterStatus {
+  active
+  inactive
+}
+
+enum OrderType {
+  Essay
+  Thesis
+  Coding
+  Quiz
+  Exam
+  Discussion
+  Other
+}
+
+enum AssignmentStatus {
+  New
+  InProgress
+  Completed
+  Cancelled
+  OnHold
+}
+
+enum PaymentStatus {
+  NotPaid
+  PartiallyPaid
+  Paid
+  Refused
+}
+
+enum Priority {
+  low
+  normal
+  high
+}
+
+enum InvoiceStatus {
+  Draft
+  Sent
+  Paid
+  Overdue
+  Void
+}
+
+enum PaymentMethod {
+  mpesa
+  paypal
+  bank
+  cash
+  other
+}
+
+enum ReminderType {
+  h24
+  h6
+  h2
+  custom
+}
+
+model User {
+  id           String   @id @default(cuid())
+  email        String   @unique
+  passwordHash String
+  name         String?
+  createdAt    DateTime @default(now())
+}
+
+model Client {
+  id        String   @id @default(cuid())
+  name      String
+  email     String?
+  phone     String?
+  country   String?
+  notes     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+  invoices  Invoice[]
+}
+
+model Writer {
+  id             String       @id @default(cuid())
+  name           String
+  contact         String?
+  specialization String?
+  rateType       RateType
+  rateValue      Float
+  status         WriterStatus @default(active)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  orders         Order[]
+}
+
+model Order {
+  id              String           @id @default(cuid())
+  clientId        String
+  title           String
+  orderType       OrderType
+  subject         String?
+  wordsPages      String?
+  formatStyle     String?
+  priceQuoted     Float
+  depositRequired Boolean          @default(false)
+  amountPaid      Float            @default(0)
+  writerId        String?
+  writerCost      Float?
+  status          AssignmentStatus @default(New)
+  paymentStatus   PaymentStatus    @default(NotPaid)
+  refusalReason   String?
+  deadline        DateTime
+  priority        Priority         @default(normal)
+  links           String?
+  internalNotes   String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  client          Client           @relation(fields: [clientId], references: [id])
+  writer          Writer?          @relation(fields: [writerId], references: [id])
+  invoices        Invoice[]
+  reminders       Reminder[]
+  activities      OrderActivity[]
+}
+
+model OrderActivity {
+  id        String   @id @default(cuid())
+  orderId   String
+  action    String
+  note      String?
+  createdAt DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  clientId      String
+  orderId       String
+  issueDate     DateTime
+  dueDate       DateTime
+  lineItems     Json
+  subtotal      Float
+  tax           Float?
+  total         Float
+  status        InvoiceStatus @default(Draft)
+  pdfPath       String?
+  paymentLink   String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  client        Client        @relation(fields: [clientId], references: [id])
+  order         Order         @relation(fields: [orderId], references: [id])
+  payments      Payment[]
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  invoiceId String
+  amount    Float
+  method    PaymentMethod
+  date      DateTime
+  note      String?
+  createdAt DateTime      @default(now())
+  invoice   Invoice       @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model Reminder {
+  id        String       @id @default(cuid())
+  orderId   String
+  remindAt  DateTime
+  type      ReminderType
+  sent      Boolean      @default(false)
+  order     Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Setting {
+  id                     String  @id @default("singleton")
+  businessName           String  @default("Assignment Help Pro")
+  businessSubtitle       String  @default("Academic Excellence Hub")
+  email                  String?
+  phone                  String?
+  address                String?
+  taxRate                Float?
+  invoicePrefix          String  @default("AHP")
+  defaultReminderHours24 Boolean @default(true)
+  defaultReminderHours6  Boolean @default(true)
+}
